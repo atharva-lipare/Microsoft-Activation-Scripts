@@ -1,9 +1,12 @@
 @echo off
 
 
+::============================================================================
+::
 ::  Check-Activation-Status
 ::  Written by @abbodi1406
-::  https://gravesoft.dev/cas
+::
+::============================================================================
 
 
 ::  Set Environment variables, it helps if they are misconfigured in the system
@@ -39,7 +42,7 @@ goto :E_Exit
 set "_batf=%~f0"
 set "_batp=%_batf:'=''%"
 setlocal EnableDelayedExpansion
-%_psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':sppmgr\:.*';iex ($f[1])"
+%_psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':sppmgr\:.*';. ([scriptblock]::Create($f[1]))"
 
 :E_Exit
 echo.
@@ -518,6 +521,7 @@ function DetectSubscription {
 function DetectAdbaClient
 {
 	$propADBA | foreach { set $_ (SlGetInfoSku $licID $_) }
+	DetectActType
 	CONOUT "`nAD Activation client information:"
 	CONOUT "    Object Name: $ADActivationObjectName"
 	CONOUT "    Domain Name: $ADActivationObjectDN"
@@ -608,17 +612,18 @@ function DetectKmsHost
 	if ($null -NE $KeyManagementServiceNotificationRequests) {CONOUT "    Notification: $KeyManagementServiceNotificationRequests"}
 }
 
+function DetectActType
+{
+	$VLType = strGetRegistry ($SPKeyPath + '\' + $strApp + '\' + $licID) "VLActivationType"
+	if ($null -EQ $VLType) {$VLType = strGetRegistry ($SPKeyPath + '\' + $strApp) "VLActivationType"}
+	if ($null -EQ $VLType) {$VLType = strGetRegistry ($SPKeyPath) "VLActivationType"}
+	if ($null -EQ $VLType -Or $VLType -GT 3) {$VLType = 0}
+	if ($null -NE $VLType) {CONOUT "Configured Activation Type: $($VLActTypes[$VLType])"}
+}
+
 function DetectKmsClient
 {
-	if ($win8)
-	{
-		$VLType = strGetRegistry ($SPKeyPath + '\' + $strApp + '\' + $licID) "VLActivationType"
-		if ($null -EQ $VLType) {$VLType = strGetRegistry ($SPKeyPath + '\' + $strApp) "VLActivationType"}
-		if ($null -EQ $VLType) {$VLType = strGetRegistry ($SPKeyPath) "VLActivationType"}
-		if ($null -EQ $VLType -Or $VLType -GT 3) {$VLType = 0}
-	}
-	if ($null -NE $VLType) {CONOUT "Configured Activation Type: $($VLActTypes[$VLType])"}
-
+	if ($win8) {DetectActType}
 	CONOUT "`r"
 	if ($LicenseStatus -NE 1) {
 		CONOUT "Please activate the product in order to update KMS client information values."
@@ -866,6 +871,7 @@ function GetResult($strSLP, $strApp, $entry)
 
 	if ($win8 -And $VLActivationType -EQ 1) {
 		DetectAdbaClient
+		$cKmsClient = $null
 	}
 
 	if ($winID -And $null -NE $cAvmClient) {

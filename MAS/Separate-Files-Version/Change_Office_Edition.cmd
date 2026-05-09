@@ -1,12 +1,11 @@
-@set masver=3.2
+@set masver=3.11
 @echo off
 
 
 
 ::============================================================================
 ::
-::   Homepage: mass grave[.]dev
-::      Email: mas.help@outlook.com
+::   Homepage: m{}assgrave{dot}dev
 ::
 ::============================================================================
 
@@ -37,6 +36,7 @@ set "_cmdf=%~f0"
 for %%# in (%*) do (
 if /i "%%#"=="re1" set re1=1
 if /i "%%#"=="re2" set re2=1
+if /i "%%#"=="-qedit" (set re1=1&set re2=1)
 )
 
 :: Re-launch the script with x64 process if it was initiated by x86 process on x64 bit Windows
@@ -59,7 +59,9 @@ exit /b
 ::========================================================================================================================================
 
 set "blank="
-set "mas=ht%blank%tps%blank%://mass%blank%grave.dev/"
+set "mas=ht%blank%tps%blank%://m%blank%ass%blank%grave.dev/"
+set "github=ht%blank%tps%blank%://github.com/m%blank%assgra%blank%vel/Micro%blank%soft-Acti%blank%vation-Scripts"
+set "selfgit=ht%blank%tps%blank%://git.acti%blank%vated.win/Micr%blank%osoft-Act%blank%ivation-Scripts"
 
 ::  Check if Null service is working, it's important for the batch script
 
@@ -133,6 +135,16 @@ call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%trouble
 goto dk_done
 )
 
+if exist "%Systemdrive%\Users\WDAGUtilityAccount" (
+sc query gcs | find /i "RUNNING" %nul% && (
+%eline%
+echo Windows Sandbox detected.
+echo The script cannot run due to missing licensing components. Aborting...
+echo:
+goto dk_done
+)
+)
+
 if %winbuild% LSS 7600 (
 %eline%
 echo Unsupported OS version detected [%winbuild%].
@@ -188,19 +200,20 @@ goto dk_done
 
 ::pstst $ExecutionContext.SessionState.LanguageMode :pstst
 
-for /f "delims=" %%a in ('%psc% "if ($PSVersionTable.PSEdition -ne 'Core') {$f=[io.file]::ReadAllText('!_batp!') -split ':pstst';iex ($f[1])}" %nul6%') do (set tstresult=%%a)
+for /f "delims=" %%a in ('%psc% "if ($PSVersionTable.PSEdition -ne 'Core') {$f=[IO.File]::ReadAllText('!_batp!') -split ':pstst';. ([scriptblock]::Create($f[1]))}" %nul6%') do (set tstresult=%%a)
 
 if /i not "%tstresult%"=="FullLanguage" (
 %eline%
-echo: %tstresult%
-cmd /c "%psc% $ExecutionContext.SessionState.LanguageMode"
+for /f "delims=" %%a in ('%psc% "$ExecutionContext.SessionState.LanguageMode" %nul6%') do (set tstresult2=%%a)
+echo Test 1 - %tstresult%
+echo Test 2 - !tstresult2!
+echo:
 
 REM check LanguageMode
 
-cmd /c "%psc% "$ExecutionContext.SessionState.LanguageMode"" | findstr /i "ConstrainedLanguage RestrictedLanguage NoLanguage" %nul1% && (
+echo: !tstresult2! | findstr /i "ConstrainedLanguage RestrictedLanguage NoLanguage" %nul1% && (
 echo FullLanguage mode not found in PowerShell. Aborting...
 echo If you have applied restrictions on Powershell then undo those changes.
-echo:
 set fixes=%fixes% %mas%fix_powershell
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%fix_powershell"
 goto dk_done
@@ -210,6 +223,8 @@ REM check Powershell core version
 
 cmd /c "%psc% "$PSVersionTable.PSEdition"" | find /i "Core" %nul1% && (
 echo Windows Powershell is needed for MAS but it seems to be replaced with Powershell core. Aborting...
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%in-place_repair_upgrade"
 goto dk_done
 )
 
@@ -218,17 +233,37 @@ REM check for Mal-ware that may cause issues with Powershell
 for /r "%ProgramFiles%\" %%f in (secureboot.exe) do if exist "%%f" (
 echo "%%f"
 echo Mal%blank%ware found, PowerShell is not working properly.
-echo:
 set fixes=%fixes% %mas%remove_mal%w%ware
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%remove_mal%w%ware"
 goto dk_done
 )
 
+REM check if .NET is working properly
+
+if /i "!tstresult2!"=="FullLanguage" (
+cmd /c "%psc% ""try {[System.AppDomain]::CurrentDomain.GetAssemblies(); [System.Math]::Sqrt(144)} catch {Exit 3}""" %nul%
+if !errorlevel!==3 (
+echo Windows Powershell failed to load .NET command. Aborting...
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%in-place_repair_upgrade"
+goto dk_done
+)
+)
+
 REM check antivirus and other errors
 
 echo PowerShell is not working properly. Aborting...
-cmd /c "%psc% ""$av = Get-WmiObject -Namespace root\SecurityCenter2 -Class AntiVirusProduct; $n = @(); foreach ($i in $av) { if ($i.displayName -notlike '*windows*') { $n += $i.displayName } }; if ($n) { Write-Host ('Installed 3rd party Antivirus might be blocking the script - ' + ($n -join ', ')) -ForegroundColor White -BackgroundColor Blue }"""
+
+if /i "!tstresult2!"=="FullLanguage" (
 echo:
+echo Your antivirus software might be blocking the script.
+echo:
+sc query sense | find /i "RUNNING" %nul% && (
+echo Installed Antivirus - Microsoft Defender for Endpoint
+)
+cmd /c "%psc% ""$av = Get-WmiObject -Namespace root\SecurityCenter2 -Class AntiVirusProduct; $n = @(); foreach ($i in $av) { $n += $i.displayName }; if ($n) { Write-Host ('Installed Antivirus - ' + ($n -join ', '))}"""
+)
+
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 goto dk_done
@@ -248,7 +283,9 @@ set terminal=
 
 if defined terminal (
 set lines=0
-for /f "skip=2 tokens=2 delims=: " %%A in ('mode con') do if "!lines!"=="0" set lines=%%A
+for /f "skip=3 tokens=* delims=" %%A in ('mode con') do if "!lines!"=="0" (
+for %%B in (%%A) do set lines=%%B
+)
 if !lines! GEQ 100 set terminal=
 )
 
@@ -309,7 +346,7 @@ echo:
 call :dk_color %_Green% "Choose a menu option using your keyboard [1,0] :"
 choice /C:10 /N
 if !errorlevel!==2 rem
-if !errorlevel!==1 (start %mas% & exit /b)
+if !errorlevel!==1 (start %selfgit% & start %github% & start %mas% & exit /b)
 )
 )
 
@@ -322,15 +359,6 @@ title  Change Office Edition %masver%
 echo:
 echo Initializing...
 echo:
-
-if not exist %SysPath%\sppsvc.exe (
-%eline%
-echo [%SysPath%\sppsvc.exe] file is missing. Aborting...
-echo:
-set fixes=%fixes% %mas%troubleshoot
-call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
-goto dk_done
-)
 
 ::========================================================================================================================================
 
@@ -364,9 +392,7 @@ if %_wmic% EQU 0 set "chkedi=for /f "tokens=2 delims==" %%a in ('%psc% "(([WMISE
 if %osedition%==0 (
 %eline%
 echo Failed to detect OS Edition. Aborting...
-echo:
-set fixes=%fixes% %mas%troubleshoot
-call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+call :dk_color %Blue% "To fix this issue, activate Windows from the main menu."
 goto dk_done
 )
 
@@ -385,7 +411,6 @@ if not defined o16c2r_reg (
 %eline%
 echo Office C2R 2016 or later is not installed, which is required for this script.
 echo Download and install Office from below URL and try again.
-echo:
 set fixes=%fixes% %mas%genuine-installation-media
 call :dk_color %_Yellow% "%mas%genuine-installation-media"
 goto dk_done
@@ -402,7 +427,6 @@ if %verchk% LSS 9029 (
 echo Installed Office version is %_version%.
 echo Minimum required version is 16.0.9029.2167
 echo Aborting...
-echo:
 call :dk_color %Blue% "Download and install latest Office from below URL and try again."
 set fixes=%fixes% %mas%genuine-installation-media
 call :dk_color %_Yellow% "%mas%genuine-installation-media"
@@ -415,6 +439,7 @@ _updch
 _lang
 _clversion
 _version
+_AudienceData
 _oIds
 _c2rXml
 _c2rExe
@@ -424,7 +449,6 @@ _masterxml
 if not defined %%A (
 %eline%
 echo Failed to find %%A. Aborting...
-echo:
 call :dk_color %Blue% "Download and install Office from below URL and try again."
 set fixes=%fixes% %mas%genuine-installation-media
 call :dk_color %_Yellow% "%mas%genuine-installation-media"
@@ -437,7 +461,6 @@ if %winbuild% LSS 10240 if defined ltscfound (
 echo Installed Office appears to be from the Volume channel %ltsc19%%ltsc21%%ltsc24%,
 echo which is not officially supported on your Windows build version %winbuild%.
 echo Aborting...
-echo:
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 goto dk_done
@@ -451,7 +474,6 @@ if defined unsupbuild (
 %eline%
 echo Unsupported Office %verchk% is installed on your Windows build version %winbuild%.
 echo Aborting...
-echo:
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 goto dk_done
@@ -542,9 +564,10 @@ goto :oe_edition
 :oe_editionchangepre
 
 cls
+set editedition=
 call :ch_getinfo
 call :oe_tempcleanup
-%psc% "$f=[io.file]::ReadAllText('!_batp!') -split ':getlist\:.*';iex ($f[1])"
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':getlist\:.*';. ([scriptblock]::Create($f[1]))"
 
 :oe_editionchange
 
@@ -557,7 +580,6 @@ mode 98, 45
 if not exist %SystemRoot%\Temp\%list%.txt (
 %eline%
 echo Failed to generate available editions list.
-echo:
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 goto :oe_goback
@@ -618,11 +640,10 @@ cls
 set suites=
 echo %list% | find /i "Suites" %nul1% && (
 set suites=1
-%psc% "$f=[io.file]::ReadAllText('!_batp!') -split ':getappnames\:.*';iex ($f[1])"
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':getappnames\:.*';. ([scriptblock]::Create($f[1]))"
 if not exist %SystemRoot%\Temp\getAppIds.txt (
 %eline%
 echo Failed to generate available apps list.
-echo:
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 goto :oe_goback
@@ -652,6 +673,11 @@ if defined Lync_st set Lync_st=Off
 set OneDrive_st=Off
 if defined suites (set Teams_st=Off) else (set Teams_st=)
 
+set OutlookForWindows_st=
+if %winbuild% GEQ 19041 if defined Outlook_st echo %targetedition% | find /i "O365" %nul1% && (
+set OutlookForWindows_st=Off
+)
+
 :oe_excludeapps
 
 cls
@@ -660,22 +686,24 @@ if not defined terminal mode 98, 32
 %line%
 echo:
 call :dk_color %Gray% "Target edition: %targetedition%"
-call :dk_color %Gray% "You can exclude the below apps from installation."
+call :dk_color %Gray% "To exclude the apps listed below from installation, toggle them from On to Off."
+if defined editedition call :dk_color %Gray% "Note: The On/Off status below does not reflect the current status of the installed apps."
 %line%
 if defined suites echo:
-if defined Access_st     echo [A] Access           : %Access_st%
-if defined Excel_st      echo [E] Excel            : %Excel_st%
-if defined OneNote_st    echo [N] OneNote          : %OneNote_st%
-if defined Outlook_st    echo [O] Outlook          : %Outlook_st%
-if defined PowerPoint_st echo [P] PowerPoint       : %PowerPoint_st%
-if defined Project_st    echo [J] Project          : %Project_st%
-if defined Publisher_st  echo [R] Publisher        : %Publisher_st%
-if defined Visio_st      echo [V] Visio            : %Visio_st%
-if defined Word_st       echo [W] Word             : %Word_st%
+if defined Access_st            echo [A] Access              : %Access_st%
+if defined Excel_st             echo [E] Excel               : %Excel_st%
+if defined OneNote_st           echo [N] OneNote             : %OneNote_st%
+if defined Outlook_st           echo [O] Outlook ^(Classic^)   : %Outlook_st%
+if defined PowerPoint_st        echo [P] PowerPoint          : %PowerPoint_st%
+if defined Project_st           echo [J] Project             : %Project_st%
+if defined Publisher_st         echo [R] Publisher           : %Publisher_st%
+if defined Visio_st             echo [V] Visio               : %Visio_st%
+if defined Word_st              echo [W] Word                : %Word_st%
 echo:
-if defined Lync_st       echo [L] SkypeForBusiness : %Lync_st%
-if defined OneDrive_st   echo [D] OneDrive         : %OneDrive_st%
-if defined Teams_st      echo [T] Teams            : %Teams_st%
+if defined Lync_st              echo [L] SkypeForBusiness    : %Lync_st%
+if defined OutlookForWindows_st echo [K] Outlook ^(New^)       : %OutlookForWindows_st%
+if defined OneDrive_st          echo [D] OneDrive            : %OneDrive_st%
+if defined Teams_st             echo [T] Teams               : %Teams_st%
 %line%
 echo:
 echo [1] Continue
@@ -683,22 +711,23 @@ echo [0] Go Back
 %line%
 echo:
 call :dk_color %_Green% "Choose a menu option using your keyboard:"
-choice /C:AENOPJRVWLDT10 /N
+choice /C:AENOPJRVWLKDT10 /N
 set _el=!errorlevel!
-if !_el!==14 goto :oemenu
-if !_el!==13 call :excludelist & goto :oe_editionchangefinal
-if !_el!==12 if defined Teams_st      (if "%Teams_st%"=="Off"      (set Teams_st=ON)      else (set Teams_st=Off))
-if !_el!==11 if defined OneDrive_st   (if "%OneDrive_st%"=="Off"   (set OneDrive_st=ON)   else (set OneDrive_st=Off))
-if !_el!==10 if defined Lync_st       (if "%Lync_st%"=="Off"       (set Lync_st=ON)       else (set Lync_st=Off))
-if !_el!==9  if defined Word_st       (if "%Word_st%"=="Off"       (set Word_st=ON)       else (set Word_st=Off))
-if !_el!==8  if defined Visio_st      (if "%Visio_st%"=="Off"      (set Visio_st=ON)      else (set Visio_st=Off))
-if !_el!==7  if defined Publisher_st  (if "%Publisher_st%"=="Off"  (set Publisher_st=ON)  else (set Publisher_st=Off))
-if !_el!==6  if defined Project_st    (if "%Project_st%"=="Off"    (set Project_st=ON)    else (set Project_st=Off))
-if !_el!==5  if defined PowerPoint_st (if "%PowerPoint_st%"=="Off" (set PowerPoint_st=ON) else (set PowerPoint_st=Off))
-if !_el!==4  if defined Outlook_st    (if "%Outlook_st%"=="Off"    (set Outlook_st=ON)    else (set Outlook_st=Off))
-if !_el!==3  if defined OneNote_st    (if "%OneNote_st%"=="Off"    (set OneNote_st=ON)    else (set OneNote_st=Off))
-if !_el!==2  if defined Excel_st      (if "%Excel_st%"=="Off"      (set Excel_st=ON)      else (set Excel_st=Off))
-if !_el!==1  if defined Access_st     (if "%Access_st%"=="Off"     (set Access_st=ON)     else (set Access_st=Off))
+if !_el!==15 goto :oemenu
+if !_el!==14 call :excludelist & goto :oe_editionchangefinal
+if !_el!==13 if defined Teams_st             (if "%Teams_st%"=="Off"             (set Teams_st=ON)             else (set Teams_st=Off))
+if !_el!==12 if defined OneDrive_st          (if "%OneDrive_st%"=="Off"          (set OneDrive_st=ON)          else (set OneDrive_st=Off))
+if !_el!==11 if defined OutlookForWindows_st (if "%OutlookForWindows_st%"=="Off" (set OutlookForWindows_st=ON) else (set OutlookForWindows_st=Off))
+if !_el!==10 if defined Lync_st              (if "%Lync_st%"=="Off"              (set Lync_st=ON)              else (set Lync_st=Off))
+if !_el!==9  if defined Word_st              (if "%Word_st%"=="Off"              (set Word_st=ON)              else (set Word_st=Off))
+if !_el!==8  if defined Visio_st             (if "%Visio_st%"=="Off"             (set Visio_st=ON)             else (set Visio_st=Off))
+if !_el!==7  if defined Publisher_st         (if "%Publisher_st%"=="Off"         (set Publisher_st=ON)         else (set Publisher_st=Off))
+if !_el!==6  if defined Project_st           (if "%Project_st%"=="Off"           (set Project_st=ON)           else (set Project_st=Off))
+if !_el!==5  if defined PowerPoint_st        (if "%PowerPoint_st%"=="Off"        (set PowerPoint_st=ON)        else (set PowerPoint_st=Off))
+if !_el!==4  if defined Outlook_st           (if "%Outlook_st%"=="Off"           (set Outlook_st=ON)           else (set Outlook_st=Off))
+if !_el!==3  if defined OneNote_st           (if "%OneNote_st%"=="Off"           (set OneNote_st=ON)           else (set OneNote_st=Off))
+if !_el!==2  if defined Excel_st             (if "%Excel_st%"=="Off"             (set Excel_st=ON)             else (set Excel_st=Off))
+if !_el!==1  if defined Access_st            (if "%Access_st%"=="Off"            (set Access_st=ON)            else (set Access_st=Off))
 goto :oe_excludeapps
 
 :excludelist
@@ -715,6 +744,7 @@ publisher
 visio
 word
 lync
+outlookforwindows
 onedrive
 teams
 ) do (
@@ -774,7 +804,6 @@ if /i "%_lang%"=="%%#" set langmatched=1
 if not defined langmatched (
 %eline%
 echo %_lang% language is not available for Project/Visio apps.
-echo:
 call :dk_color %Blue% "Install Office in the supported language for Project/Visio from the below URL."
 set fixes=%fixes% %mas%genuine-installation-media
 call :dk_color %_Yellow% "%mas%genuine-installation-media"
@@ -787,7 +816,9 @@ goto :oe_goback
 ::  OfficeClickToRun.exe with productstoadd method is used here to add editions
 ::  It uses delta updates, meaning that since it's using same installed build, it will consume very less Internet
 
-set "c2rcommand="%_c2rExe%" platform=%_oArch% culture=%_lang% productstoadd=%targetedition%.16_%_lang%_x-none cdnbaseurl.16=http://officecdn.microsoft.com/pr/%_updch% baseurl.16=http://officecdn.microsoft.com/pr/%_updch% version.16=%_version% mediatype.16=CDN sourcetype.16=CDN deliverymechanism=%_updch% %targetedition%.excludedapps.16=groove%excludelist% flt.useteamsaddon=disabled flt.usebingaddononinstall=disabled flt.usebingaddononupdate=disabled"
+call :oe_getlangs
+
+set "c2rcommand="%_c2rExe%" platform=%_oArch% culture=%_lang% productstoadd=%targetedition%.16_%_allLangs% cdnbaseurl.16=http://officecdn.microsoft.com/pr/%_updch% baseurl.16=http://officecdn.microsoft.com/pr/%_updch% version.16=%_version% mediatype.16=CDN sourcetype.16=CDN deliverymechanism=%_updch% %targetedition%.excludedapps.16=groove%excludelist% flt.useteamsaddon=disabled flt.usebingaddononinstall=disabled flt.usebingaddononupdate=disabled"
 
 if %change%==1 (
 set "c2rcommand=!c2rcommand! productstoremove=AllProducts"
@@ -802,8 +833,40 @@ set errorcode=%errorlevel%
 timeout /t 10 %nul%
 
 echo:
+set suggestchannel=
+
 if %errorcode% EQU 0 (
-call :dk_color %Gray% "Now run the Office activation option from the main menu."
+if %change%==1 (
+echo %targetedition% | find /i "2019Volume" %nul% && (
+if not defined ltsc19 set suggestchannel=Production::LTSC
+if /i not %_AudienceData%==Production::LTSC set suggestchannel=Production::LTSC
+if /i not %_updch%==F2E724C1-748F-4B47-8FB8-8E0D210E9208 set suggestchannel=Production::LTSC
+)
+
+echo %targetedition% | find /i "2021Volume" %nul% && (
+if not defined ltsc21 set suggestchannel=Production::LTSC2021
+if /i not %_AudienceData%==Production::LTSC2021 set suggestchannel=Production::LTSC2021
+if /i not %_updch%==5030841D-C919-4594-8D2D-84AE4F96E58E set suggestchannel=Production::LTSC2021
+)
+
+echo %targetedition% | find /i "2024Volume" %nul% && (
+if not defined ltsc24 set suggestchannel=Production::LTSC2024
+if /i not %_AudienceData%==Production::LTSC2024 set suggestchannel=Production::LTSC2024
+if /i not %_updch%==7983BAC0-E531-40CF-BE00-FD24FE66619C set suggestchannel=Production::LTSC2024
+)
+
+echo %targetedition% | findstr /R "20.*Volume" %nul% || (
+if defined ltscfound set suggestchannel=Production::CC
+echo %_AudienceData% | find /i "LTSC" %nul% && set suggestchannel=Production::CC
+)
+
+if defined suggestchannel (
+call :dk_color %Gray% "Mismatch found in update channel and installed product."
+call :dk_color %Blue% "It is recommended to change the update channel to [!suggestchannel!] from the previous menu."
+)
+echo:
+)
+call :dk_color %Gray% "To activate Office, run the activation option from the main menu."
 ) else (
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
@@ -827,6 +890,7 @@ goto :oe_goback
 )
 
 set change=0
+set editedition=1
 call :ch_getinfo
 cls
 
@@ -932,13 +996,8 @@ if %verified%==0 goto :oe_removeedition
 cls
 if not defined terminal mode 105, 32
 
-set _lang=
-echo "%o16c2r_reg%" | find /i "Wow6432Node" %nul1% && (set _tok=10) || (set _tok=9)
-for /f "tokens=%_tok% delims=\" %%a in ('reg query "%o16c2r_reg%\ProductReleaseIDs\%_actconfig%\%targetedition%.16" /f "-" /k ^| findstr /i ".*16\\.*-.*"') do (
-if defined _lang (set "_lang=!_lang!_%%a") else (set "_lang=_%%a")
-)
-
-set "c2rcommand="%_c2rExe%" platform=%_oArch% productstoremove=%targetedition%.16%_lang%"
+call :oe_getlangs %targetedition%
+set "c2rcommand="%_c2rExe%" platform=%_oArch% productstoremove=%targetedition%.16_%_allLangs%"
 
 echo:
 echo Running the below command, please wait...
@@ -980,6 +1039,12 @@ echo Installed Office editions: %_oIds%
 echo Unsupported Office edition is installed on your Windows build version %winbuild%.
 goto :oe_goback
 )
+if defined ltscfound (
+%eline%
+echo Installed Office update channel: %ltsc19%%ltsc21%%ltsc24%
+echo Unsupported Office update channel is installed on your Windows build version %winbuild%.
+goto :oe_goback
+)
 )
 
 ::===============
@@ -988,49 +1053,51 @@ set inpt=
 set counter=0
 set verified=0
 set targetFFN=
+set bypassFFN=
 set targetchannel=
 
 %line%
 echo:
 call :dk_color %Gray% "Installed update channel: %_AudienceData%, %_version%, Client: %_clversion%"
-call :dk_color %Gray% "Unsupported update channels are excluded from this list."
+call :dk_color %Gray% "Installed Office editions: %_oIds%"
 %line%
 echo:
 
 for %%# in (
-"5440FD1F-7ECB-4221-8110-145EFAA6372F_Insider Fast [Beta]  -    Insiders::DevMain"
-"64256AFE-F5D9-4F86-8936-8840A6A4F5BE_Monthly Preview      -    Insiders::CC"
-"492350F6-3A01-4F97-B9C0-C7C6DDF67D60_Monthly [Current]    -  Production::CC"
-"55336B82-A18D-4DD6-B5F6-9E5095C314A6_Monthly Enterprise   -  Production::MEC"
-"B8F9B850-328D-4355-9145-C59439A0C4CF_Semi Annual Preview  -    Insiders::FRDC"
-"7FFBC6BF-BC32-4F92-8982-F9DD17FD3114_Semi Annual          -  Production::DC"
-"EA4A4090-DE26-49D7-93C1-91BFF9E53FC3_DevMain Channel      -     Dogfood::DevMain"
-"B61285DD-D9F7-41F2-9757-8F61CBA4E9C8_Microsoft Elite      -   Microsoft::DevMain"
-"F2E724C1-748F-4B47-8FB8-8E0D210E9208_Perpetual2019 VL     -  Production::LTSC"
-"1D2D2EA6-1680-4C56-AC58-A441C8C24FF9_Microsoft2019 VL     -   Microsoft::LTSC"
-"5030841D-C919-4594-8D2D-84AE4F96E58E_Perpetual2021 VL     -  Production::LTSC2021"
-"86752282-5841-4120-AC80-DB03AE6B5FDB_Microsoft2021 VL     -   Microsoft::LTSC2021"
-"7983BAC0-E531-40CF-BE00-FD24FE66619C_Perpetual2024 VL     -  Production::LTSC2024"
-"C02D8FE6-5242-4DA8-972F-82EE55E00671_Microsoft2024 VL     -   Microsoft::LTSC2024"
+"5440fd1f-7ecb-4221-8110-145efaa6372f_Beta    / Insider Fast    -   Insiders::DevMain  -"
+"64256afe-f5d9-4f86-8936-8840a6a4f5be_Current / Monthly Preview -   Insiders::CC       -"
+"492350f6-3a01-4f97-b9c0-c7c6ddf67d60_Current / Monthly         - Production::CC       -"
+"55336b82-a18d-4dd6-b5f6-9e5095c314a6_Monthly Enterprise        - Production::MEC      -"
+"7ffbc6bf-bc32-4f92-8982-f9dd17fd3114_Semi Annual Enterprise    - Production::DC       -"
+"ea4a4090-de26-49d7-93c1-91bff9e53fc3_DevMain Channel           -    Dogfood::DevMain  -"
+"b61285dd-d9f7-41f2-9757-8f61cba4e9c8_Microsoft Elite           -  Microsoft::DevMain  -"
+"f2e724c1-748f-4b47-8fb8-8e0d210e9208_Perpetual2019 VL          - Production::LTSC     -"
+"1d2d2ea6-1680-4c56-ac58-a441c8c24ff9_Microsoft2019 VL          -  Microsoft::LTSC     -"
+"5030841d-c919-4594-8d2d-84ae4f96e58e_Perpetual2021 VL          - Production::LTSC2021 -"
+"86752282-5841-4120-ac80-db03ae6b5fdb_Microsoft2021 VL          -  Microsoft::LTSC2021 -"
+"7983bac0-e531-40cf-be00-fd24fe66619c_Perpetual2024 VL          - Production::LTSC2024 -"
+"c02d8fe6-5242-4da8-972f-82ee55e00671_Microsoft2024 VL          -  Microsoft::LTSC2024 -"
 ) do (
 for /f "tokens=1-2 delims=_" %%A in ("%%~#") do (
+set bypass=
 set supported=
 if %winbuild% LSS 10240 (echo %%B | findstr /i "LTSC DevMain" %nul% || set supported=1) else (set supported=1)
 if %winbuild% GEQ 10240 (
-if defined ltsc19 echo %%B | find /i "2019 VL" %nul% || set supported=
-if defined ltsc21 echo %%B | find /i "2021 VL" %nul% || set supported=
-if defined ltsc24 echo %%B | find /i "2024 VL" %nul% || set supported=
-if not defined ltscfound echo %%B | find /i "LTSC" %nul% && set supported=
+if defined ltsc19 echo %%B | find /i "2019 VL" %nul% || set bypass=1
+if defined ltsc21 echo %%B | find /i "2021 VL" %nul% || set bypass=1
+if defined ltsc24 echo %%B | find /i "2024 VL" %nul% || set bypass=1
+if not defined ltscfound echo %%B | find /i "LTSC" %nul% && set bypass=1
 )
 if defined supported (
 set /a counter+=1
 if !counter! LSS 10 (
-echo [!counter!]  %%B
+if defined bypass (echo [!counter!]  %%B  Unofficial change method will be used) else (echo [!counter!]  %%B)
 ) else (
-echo [!counter!] %%B
+if defined bypass (echo [!counter!] %%B  Unofficial change method will be used) else (echo [!counter!] %%B)
 )
 set targetFFN!counter!=%%A
 set targetchannel!counter!=%%B
+if defined bypass set bypassFFN=!bypassFFN!%%A
 )
 )
 )
@@ -1044,7 +1111,7 @@ call :dk_color %_Green% "Enter an option number using your keyboard and press En
 set /p inpt=
 if "%inpt%"=="" goto :oe_changeupdchnl
 if "%inpt%"=="0" goto :oemenu
-if /i "%inpt%"=="R" start https://learn.microsoft.com/microsoft-365-apps/updates/overview-update-channels & goto :oe_changeupdchnl
+if /i "%inpt%"=="R" start https://learn.microsoft.com/en-us/microsoft-365-apps/updates/overview-update-channels & goto :oe_changeupdchnl
 for /l %%i in (1,1,%counter%) do (if "%inpt%"=="%%i" set verified=1)
 set targetFFN=!targetFFN%inpt%!
 set targetchannel=!targetchannel%inpt%!
@@ -1058,18 +1125,146 @@ if not defined terminal mode 105, 32
 ::  Get build number for the target FFN, using build number with OfficeC2RClient.exe command to trigger updates provides accurate results
 
 set build=
-for /f "delims=" %%a in ('%psc% "$f=[io.file]::ReadAllText('!_batp!') -split ':getbuild\:.*';iex ($f[1])" %nul6%') do (set build=%%a)
+for /f "delims=" %%a in ('%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':getbuild\:.*';. ([scriptblock]::Create($f[1]))" %nul6%') do (set build=%%a)
 echo "%build%" | find /i "16." %nul% || set build=
+
+echo:
+for /f "tokens=1 delims=-" %%A in ("%targetchannel%") do (echo Target update channel: %%A)
+echo Target build number: %build%
+echo: %bypassFFN% | find /i "%targetFFN%" %nul% && goto :oe_changeunoff
+
+call :oe_cleanupreg
+
+if not defined build (
+if %winbuild% GEQ 9200 call :dk_color %Gray% "Failed to detect build number for the target FFN."
+set "updcommand="%_c2rCexe%" /update user"
+) else (
+set "updcommand="%_c2rCexe%" /update user updatetoversion=%build%"
+)
+echo Running the below command to trigger updates...
+echo:
+echo %updcommand%
+%updcommand%
+echo:
+echo Check this webpage for help - %mas%troubleshoot
+goto :oe_goback
+
+::=======================
+
+::  Unofficial method to change channel
+
+:oe_changeunoff
+
+set abortchange=
+echo %targetchannel% | find /i "2019 VL" %nul% && (for %%A in (%_oIds%) do (echo %%A | find /i "2019Volume" %nul% || set abortchange=1))
+echo %targetchannel% | find /i "2021 VL" %nul% && (for %%A in (%_oIds%) do (echo %%A | find /i "2021Volume" %nul% || set abortchange=1))
+echo %targetchannel% | find /i "2024 VL" %nul% && (for %%A in (%_oIds%) do (echo %%A | find /i "2024Volume" %nul% || set abortchange=1))
+
+if defined abortchange (
+%eline%
+echo Mismatch found in installed Office products and target update channel. Aborting...
+echo Non-perpetual Office products are not suppported with Perpetual VL update channels.
+goto :oe_goback
+)
+
+if not defined build (
+%eline%
+call :dk_color %Red% "Failed to detect build number for the target FFN."
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto :oe_goback
+)
+
+set buildchk=0
+for /f "tokens=3 delims=." %%a in ("%build%") do set "buildchk=%%a"
+
+call :oe_getlangs %_firstoId%
+
+echo %targetchannel% | find /i "2019 VL" %nul% && (
+for %%A in (en-gb es-mx fr-ca) do (
+echo %_allLangs% | find /i "%%A" %nul% && (
+%eline%
+echo [%%A] language is not supported on the Office 2019 Perpetual VL update channel. Aborting...
+goto :oe_goback
+)
+)
+)
+
+set "c2rcommand="%_c2rExe%" platform=%_oArch% culture=%_lang% productstoadd=%_firstoId%.16_%_allLangs% cdnbaseurl.16=http://officecdn.microsoft.com/pr/%targetFFN% baseurl.16=http://officecdn.microsoft.com/pr/%targetFFN% version.16=%build% mediatype.16=CDN sourcetype.16=CDN deliverymechanism=%targetFFN% %_firstoId%.excludedapps.16=%_firstoIdExcludelist% flt.useteamsaddon=disabled flt.usebingaddononinstall=disabled flt.usebingaddononupdate=disabled"
+set "c2rclientupdate=!c2rcommand! scenario=CLIENTUPDATE"
+
+if %clverchk% LSS %buildchk% (
+echo:
+call :dk_color %Blue% "Do not terminate the operation before it completes..."
+echo:
+echo Updating Office C2R client with the command below, please wait...
+echo:
+echo %c2rclientupdate%
+%c2rclientupdate%
+for /l %%i in (1,1,30) do (if !clverchk! LSS %buildchk% (call :ch_getinfo&timeout /t 10 %nul%))
+)
+
+if %clverchk% LSS %buildchk% (
+echo:
+call :dk_color %Red% "Failed to update Office C2R client. Aborting..."
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+goto :oe_goback
+)
+
+call :oe_cleanupreg
+
+echo Running the below command to change update channel, please wait...
+echo:
+echo %c2rcommand%
+%c2rcommand%
+set errorcode=%errorlevel%
+timeout /t 10 %nul%
+
+echo:
+if %errorcode% EQU 0 (
+call :dk_color %Gray% "Now run the Office activation option from the main menu."
+) else (
+set fixes=%fixes% %mas%troubleshoot
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+)
+
+::========================================================================================================================================
+
+:oe_goback
+
+call :oe_tempcleanup
+
+echo:
+if defined fixes (
+call :dk_color %White% "Follow ALL the ABOVE blue lines.   "
+call :dk_color2 %Blue% "Press [1] to Open Support Webpage " %Gray% " Press [0] to Ignore"
+choice /C:10 /N
+if !errorlevel!==2 goto :oemenu
+if !errorlevel!==1 (start %selfgit% & start %github% & for %%# in (%fixes%) do (start %%#))
+)
+
+if defined terminal (
+call :dk_color %_Yellow% "Press [0] key to go back..."
+choice /c 0 /n
+) else (
+call :dk_color %_Yellow% "Press any key to go back..."
+pause %nul1%
+)
+goto :oemenu
+
+::========================================================================================================================================
+
+:oe_cleanupreg
 
 ::  Cleanup Office update related registries, thanks to @abbodi1406
 ::  https://techcommunity.microsoft.com/t5/office-365-blog/how-to-manage-office-365-proplus-channels-for-it-pros/ba-p/795813
 ::  https://learn.microsoft.com/en-us/microsoft-365-apps/updates/change-update-channels#considerations-when-changing-channels
 
 echo:
-for /f "tokens=1 delims=-" %%A in ("%targetchannel%") do (echo Target update channel: %%A)
-echo:
 echo Cleaning Office update registry keys...
 echo Adding new update channel to registry keys...
+echo:
 
 %nul% reg add %o16c2r_reg%\Configuration /v CDNBaseUrl /t REG_SZ /d "https://officecdn.microsoft.com/pr/%targetFFN%" /f
 %nul% reg add %o16c2r_reg%\Configuration /v UpdateChannel /t REG_SZ /d "https://officecdn.microsoft.com/pr/%targetFFN%" /f
@@ -1086,43 +1281,7 @@ echo Adding new update channel to registry keys...
 %nul% reg delete HKLM\SOFTWARE\Policies\Microsoft\cloud\office\16.0\Common\officeupdate /f /reg:32
 %nul% reg delete HKCU\Software\Policies\Microsoft\cloud\office\16.0\Common\officeupdate /f
 
-if not defined build (
-if %winbuild% GEQ 9200 call :dk_color %Gray% "Failed to detect build number for the target FFN."
-set "updcommand="%_c2rCexe%" /update user"
-) else (
-set "updcommand="%_c2rCexe%" /update user updatetoversion=%build%"
-)
-echo Running the below command to trigger updates...
-echo:
-echo %updcommand%
-%updcommand%
-echo:
-echo Check this webpage for help - %mas%troubleshoot
-goto :oe_goback
-
-::========================================================================================================================================
-
-:oe_goback
-
-call :oe_tempcleanup
-
-echo:
-if defined fixes (
-call :dk_color %White% "Follow ALL the ABOVE blue lines.   "
-call :dk_color2 %Blue% "Press [1] to Open Support Webpage " %Gray% " Press [0] to Ignore"
-choice /C:10 /N
-if !errorlevel!==2 goto :oemenu
-if !errorlevel!==1 (for %%# in (%fixes%) do (start %%#))
-)
-
-if defined terminal (
-call :dk_color %_Yellow% "Press [0] key to go back..."
-choice /c 0 /n
-) else (
-call :dk_color %_Yellow% "Press any key to go back..."
-pause %nul1%
-)
-goto :oemenu
+exit /b
 
 ::========================================================================================================================================
 
@@ -1145,6 +1304,7 @@ set _oRoot=
 set _oArch=
 set _updch=
 set _oIds=
+set _firstoId=
 set _lang=
 set _cfolder=
 set _version=
@@ -1175,9 +1335,13 @@ for /f "tokens=%_tok% delims=\" %%a in ('reg query "%o16c2r_reg%\ProductReleaseI
 if defined _oIds (set "_oIds=!_oIds! %%a") else (set "_oIds=%%a")
 )
 set _oIds=%_oIds:.16=%
+for /f "tokens=1" %%A in ("%_oIds%") do set _firstoId=%%A
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o16c2r_reg%\Configuration /v %_firstoId%.ExcludedApps" %nul6%') do (set "_firstoIdExcludelist=%%b")
 
 set verchk=0
+set clverchk=0
 for /f "tokens=3 delims=." %%a in ("%_version%") do set "verchk=%%a"
+for /f "tokens=3 delims=." %%a in ("%_clversion%") do set "clverchk=%%a"
 
 if exist "%_oRoot%\Licenses16\c2rpridslicensefiles_auto.xml" set "_c2rXml=%_oRoot%\Licenses16\c2rpridslicensefiles_auto.xml"
 
@@ -1193,19 +1357,37 @@ if exist "%_cfolder%\OfficeC2RClient.exe" (
 set "_c2rCexe=%_cfolder%\OfficeC2RClient.exe"
 )
 
-set "audidata4=%_AudienceData:~-4%"
+::  Check LTSC version files
 
-if /i "%audidata4%"=="LTSC" set ltsc19=LTSC
-echo %_clversion% %_version% | findstr "16.0.103 16.0.104 16.0.105" %nul% && set ltsc19=LTSC
-
-if /i "%audidata4%"=="2021" set ltsc21=LTSC2021
-echo %_clversion% %_version% | findstr "16.0.14332" %nul% && set ltsc21=LTSC2021
-
-if /i "%audidata4%"=="2024" set ltsc24=LTSC2024
-::  LTSC 2024 build is not fixed yet
+for /f "skip=2 tokens=2*" %%a in ('"reg query %o16c2r_reg%\ProductReleaseIDs\%_actconfig%" /s %nul6%') do (
+echo "%%b" %nul2% | findstr "16.0.103 16.0.104 16.0.105" %nul% && set ltsc19=LTSC
+echo "%%b" %nul2% | findstr "16.0.14332" %nul% && set ltsc21=LTSC2021
+echo "%%b" %nul2% | findstr "16.0.17932" %nul% && set ltsc24=LTSC2024
+)
 
 if not "%ltsc19%%ltsc21%%ltsc24%"=="" set ltscfound=1
 
+exit /b
+
+::========================================================================================================================================
+
+::  Check all the installed languages
+
+:oe_getlangs
+
+if "%1"=="" (
+set langreg=culture
+) else (
+set langreg=%1.16
+)
+
+set _allLangs=
+echo "%o16c2r_reg%" | find /i "Wow6432Node" %nul1% && (set _tok=10) || (set _tok=9)
+for /f "tokens=%_tok% delims=\" %%a in ('reg query "%o16c2r_reg%\ProductReleaseIDs\%_actconfig%\%langreg%" /f "-" /k ^| findstr /i "%langreg%\\.*-.*"') do (
+if defined _allLangs (set "_allLangs=!_allLangs!_%%a") else (set "_allLangs=%%a")
+)
+
+set _allLangs=%_allLangs:.16=%
 exit /b
 
 ::========================================================================================================================================
@@ -1356,7 +1538,7 @@ if ($appIdsList.Count -gt 0) {
 set ps=%SysPath%\WindowsPowerShell\v1.0\powershell.exe
 set psc=%ps% -nop -c
 set winbuild=1
-for /f "tokens=6 delims=[]. " %%G in ('ver') do set winbuild=%%G
+for /f "tokens=2 delims=[]" %%G in ('ver') do for /f "tokens=2,3,4 delims=. " %%H in ("%%~G") do set "winbuild=%%J"
 
 set _slexe=sppsvc.exe& set _slser=sppsvc
 if %winbuild% LEQ 6300 (set _slexe=SLsvc.exe& set _slser=SLsvc)
@@ -1426,6 +1608,10 @@ set spperror=%errorlevel%
 if %spperror% NEQ 1056 if %spperror% NEQ 0 (
 %eline%
 echo sc start %_slser% [Error Code: %spperror%]
+if %spperror% EQU 1053 (
+call :dk_color %Blue% "Reboot your machine using the restart option and try again."
+call :dk_color %Blue% "If it still does not work, go back to Main Menu, select Troubleshoot and run Fix WPA Registry option."
+)
 )
 
 echo:
@@ -1477,7 +1663,7 @@ call :dk_color %White% "Follow ALL the ABOVE blue lines.   "
 call :dk_color2 %Blue% "Press [1] to Open Support Webpage " %Gray% " Press [0] to Ignore"
 choice /C:10 /N
 if !errorlevel!==2 exit /b
-if !errorlevel!==1 (for %%# in (%fixes%) do (start %%#))
+if !errorlevel!==1 (start %selfgit% & start %github% & for %%# in (%fixes%) do (start %%#))
 )
 
 if defined terminal (

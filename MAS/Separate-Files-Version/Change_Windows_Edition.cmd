@@ -1,12 +1,11 @@
-@set masver=3.2
+@set masver=3.11
 @echo off
 
 
 
 ::============================================================================
 ::
-::   Homepage: mass grave[.]dev
-::      Email: mas.help@outlook.com
+::   Homepage: m{}assgrave{dot}dev
 ::
 ::============================================================================
 
@@ -42,6 +41,7 @@ set "_cmdf=%~f0"
 for %%# in (%*) do (
 if /i "%%#"=="re1" set re1=1
 if /i "%%#"=="re2" set re2=1
+if /i "%%#"=="-qedit" (set re1=1&set re2=1)
 )
 
 :: Re-launch the script with x64 process if it was initiated by x86 process on x64 bit Windows
@@ -64,7 +64,9 @@ exit /b
 ::========================================================================================================================================
 
 set "blank="
-set "mas=ht%blank%tps%blank%://mass%blank%grave.dev/"
+set "mas=ht%blank%tps%blank%://m%blank%ass%blank%grave.dev/"
+set "github=ht%blank%tps%blank%://github.com/m%blank%assgra%blank%vel/Micro%blank%soft-Acti%blank%vation-Scripts"
+set "selfgit=ht%blank%tps%blank%://git.acti%blank%vated.win/Micr%blank%osoft-Act%blank%ivation-Scripts"
 
 ::  Check if Null service is working, it's important for the batch script
 
@@ -138,6 +140,16 @@ call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%trouble
 goto dk_done
 )
 
+if exist "%Systemdrive%\Users\WDAGUtilityAccount" (
+sc query gcs | find /i "RUNNING" %nul% && (
+%eline%
+echo Windows Sandbox detected.
+echo The script cannot run due to missing licensing components. Aborting...
+echo:
+goto dk_done
+)
+)
+
 if %winbuild% LSS 7600 (
 %eline%
 echo Unsupported OS version detected [%winbuild%].
@@ -193,19 +205,20 @@ goto dk_done
 
 ::pstst $ExecutionContext.SessionState.LanguageMode :pstst
 
-for /f "delims=" %%a in ('%psc% "if ($PSVersionTable.PSEdition -ne 'Core') {$f=[io.file]::ReadAllText('!_batp!') -split ':pstst';iex ($f[1])}" %nul6%') do (set tstresult=%%a)
+for /f "delims=" %%a in ('%psc% "if ($PSVersionTable.PSEdition -ne 'Core') {$f=[IO.File]::ReadAllText('!_batp!') -split ':pstst';. ([scriptblock]::Create($f[1]))}" %nul6%') do (set tstresult=%%a)
 
 if /i not "%tstresult%"=="FullLanguage" (
 %eline%
-echo: %tstresult%
-cmd /c "%psc% $ExecutionContext.SessionState.LanguageMode"
+for /f "delims=" %%a in ('%psc% "$ExecutionContext.SessionState.LanguageMode" %nul6%') do (set tstresult2=%%a)
+echo Test 1 - %tstresult%
+echo Test 2 - !tstresult2!
+echo:
 
 REM check LanguageMode
 
-cmd /c "%psc% "$ExecutionContext.SessionState.LanguageMode"" | findstr /i "ConstrainedLanguage RestrictedLanguage NoLanguage" %nul1% && (
+echo: !tstresult2! | findstr /i "ConstrainedLanguage RestrictedLanguage NoLanguage" %nul1% && (
 echo FullLanguage mode not found in PowerShell. Aborting...
 echo If you have applied restrictions on Powershell then undo those changes.
-echo:
 set fixes=%fixes% %mas%fix_powershell
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%fix_powershell"
 goto dk_done
@@ -215,6 +228,8 @@ REM check Powershell core version
 
 cmd /c "%psc% "$PSVersionTable.PSEdition"" | find /i "Core" %nul1% && (
 echo Windows Powershell is needed for MAS but it seems to be replaced with Powershell core. Aborting...
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%in-place_repair_upgrade"
 goto dk_done
 )
 
@@ -223,17 +238,37 @@ REM check for Mal-ware that may cause issues with Powershell
 for /r "%ProgramFiles%\" %%f in (secureboot.exe) do if exist "%%f" (
 echo "%%f"
 echo Mal%blank%ware found, PowerShell is not working properly.
-echo:
 set fixes=%fixes% %mas%remove_mal%w%ware
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%remove_mal%w%ware"
 goto dk_done
 )
 
+REM check if .NET is working properly
+
+if /i "!tstresult2!"=="FullLanguage" (
+cmd /c "%psc% ""try {[System.AppDomain]::CurrentDomain.GetAssemblies(); [System.Math]::Sqrt(144)} catch {Exit 3}""" %nul%
+if !errorlevel!==3 (
+echo Windows Powershell failed to load .NET command. Aborting...
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%in-place_repair_upgrade"
+goto dk_done
+)
+)
+
 REM check antivirus and other errors
 
 echo PowerShell is not working properly. Aborting...
-cmd /c "%psc% ""$av = Get-WmiObject -Namespace root\SecurityCenter2 -Class AntiVirusProduct; $n = @(); foreach ($i in $av) { if ($i.displayName -notlike '*windows*') { $n += $i.displayName } }; if ($n) { Write-Host ('Installed 3rd party Antivirus might be blocking the script - ' + ($n -join ', ')) -ForegroundColor White -BackgroundColor Blue }"""
+
+if /i "!tstresult2!"=="FullLanguage" (
 echo:
+echo Your antivirus software might be blocking the script.
+echo:
+sc query sense | find /i "RUNNING" %nul% && (
+echo Installed Antivirus - Microsoft Defender for Endpoint
+)
+cmd /c "%psc% ""$av = Get-WmiObject -Namespace root\SecurityCenter2 -Class AntiVirusProduct; $n = @(); foreach ($i in $av) { $n += $i.displayName }; if ($n) { Write-Host ('Installed Antivirus - ' + ($n -join ', '))}"""
+)
+
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 goto dk_done
@@ -253,7 +288,9 @@ set terminal=
 
 if defined terminal (
 set lines=0
-for /f "skip=2 tokens=2 delims=: " %%A in ('mode con') do if "!lines!"=="0" set lines=%%A
+for /f "skip=3 tokens=* delims=" %%A in ('mode con') do if "!lines!"=="0" (
+for %%B in (%%A) do set lines=%%B
+)
 if !lines! GEQ 100 set terminal=
 )
 
@@ -314,7 +351,7 @@ echo:
 call :dk_color %_Green% "Choose a menu option using your keyboard [1,0] :"
 choice /C:10 /N
 if !errorlevel!==2 rem
-if !errorlevel!==1 (start %mas% & exit /b)
+if !errorlevel!==1 (start %selfgit% & start %github% & start %mas% & exit /b)
 )
 )
 
@@ -353,12 +390,10 @@ dism.exe
 if not exist %SysPath%\%%# (
 %eline%
 echo [%SysPath%\%%#] file is missing, aborting...
-echo:
 call :dk_color %Blue% "Go back to Main Menu, select Troubleshoot and run DISM Restore and SFC Scan options."
 call :dk_color %Blue% "After that, restart system and try activation again."
-echo:
-set fixes=%fixes% %mas%troubleshoot
-call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+set fixes=%fixes% %mas%in-place_repair_upgrade
+call :dk_color2 %Blue% "If it still shows the same error, do this - " %_Yellow% " %mas%in-place_repair_upgrade"
 goto dk_done
 )
 )
@@ -389,9 +424,7 @@ call :dk_actids 55c92734-d682-4d71-983e-d6ec3f16059f
 if not defined allapps (
 %eline%
 echo Failed to find activation IDs. Aborting...
-echo:
-set fixes=%fixes% %mas%troubleshoot
-call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+call :dk_color %Blue% "To fix this issue, activate Windows from the main menu."
 goto dk_done
 )
 
@@ -412,9 +445,7 @@ if not defined osedition %chkedi% do if not errorlevel 1 (call set "osedition=%%
 if not defined osedition (
 %eline%
 echo Failed to detect OS edition, aborting...
-echo:
-set fixes=%fixes% %mas%troubleshoot
-call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
+call :dk_color %Blue% "To fix this issue, activate Windows from the main menu."
 goto dk_done
 )
 
@@ -437,7 +468,7 @@ set _ntarget=
 set _wtarget=
 
 if %winbuild% GEQ 10240 for /f "tokens=4" %%a in ('dism /online /english /Get-TargetEditions ^| findstr /i /c:"Target Edition : "') do (if defined _dtarget (set "_dtarget= !_dtarget! %%a ") else (set "_dtarget= %%a "))
-if %winbuild% LSS 10240 for /f "tokens=4" %%a in ('%psc% "$f=[io.file]::ReadAllText('!_batp!') -split ':cbsxml\:.*';& ([ScriptBlock]::Create($f[1])) -GetTargetEditions;" ^| findstr /i /c:"Target Edition : "') do (if defined _ptarget (set "_ptarget= !_ptarget! %%a ") else (set "_ptarget= %%a "))
+if %winbuild% LSS 10240 for /f "tokens=4" %%a in ('%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':cbsxml\:.*';. ([scriptblock]::Create($f[1])) -GetTargetEditions;" ^| findstr /i /c:"Target Edition : "') do (if defined _ptarget (set "_ptarget= !_ptarget! %%a ") else (set "_ptarget= %%a "))
 
 if %winbuild% GEQ 10240 if not exist "%SystemRoot%\Servicing\Packages\Microsoft-Windows-Server*Edition~*.mum" (
 if %winbuild% GEQ 17063 call :ced_edilist
@@ -506,7 +537,11 @@ echo:
 
 for %%A in (%_ntarget%) do (
 set /a counter+=1
+if /i %%A==IoTEnterprise (
+echo [!counter!]  %%A [GAC, not LTSC]
+) else (
 echo [!counter!]  %%A
+)
 set targetedition!counter!=%%A
 )
 
@@ -559,7 +594,7 @@ set _dismapi=1
 )
 )
 
-set "keyflow=Retail Volume:GVLK Volume:MAK OEM:NONSLP OEM:DM PGS:TB Retail:TB:Eval"
+set "keyflow=Retail OEM:NONSLP OEM:DM Volume:MAK Volume:GVLK PGS:TB Retail:TB:Eval"
 
 call :ced_targetSKU %targetedition%
 if defined targetSKU call :ced_windowskey
@@ -574,7 +609,6 @@ if not defined key (
 %eline%
 echo [%targetedition% ^| %winbuild%]
 echo Failed to get product key from pkeyhelper.dll.
-echo:
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 goto dk_done
@@ -629,7 +663,6 @@ echo:
 call :dk_color %Gray% "Reboot is required to fully change the edition."
 ) else (
 call :dk_color %Red% "[Unsuccessful] [Error Code: !keyerror!]"
-echo:
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 )
@@ -643,7 +676,7 @@ echo:
 call :ced_prep
 if defined preperror goto dk_done
 
-%psc% "$f=[io.file]::ReadAllText('!_batp!') -split ':dismapi\:.*';& ([ScriptBlock]::Create($f[1])) %targetedition% %key%"
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':dismapi\:.*';. ([scriptblock]::Create($f[1])) %targetedition% %key%"
 call :ced_postprep
 )
 %line%
@@ -681,7 +714,7 @@ call :ced_prep
 if defined preperror goto dk_done
 
 if %_stg%==0 (set stage=) else (set stage=-StageCurrent)
-%psc% "$f=[io.file]::ReadAllText('!_batp!') -split ':cbsxml\:.*';& ([ScriptBlock]::Create($f[1])) -SetEdition %targetedition% %stage%"
+%psc% "$f=[IO.File]::ReadAllText('!_batp!') -split ':cbsxml\:.*';. ([scriptblock]::Create($f[1])) -SetEdition %targetedition% %stage%"
 call :ced_postprep
 %line%
 
@@ -710,7 +743,6 @@ if not defined key (
 %eline%
 echo [%targetedition% ^| %winbuild%]
 echo Failed to get product key from pkeyhelper.dll.
-echo:
 set fixes=%fixes% %mas%troubleshoot
 call :dk_color2 %Blue% "Check this webpage for help - " %_Yellow% " %mas%troubleshoot"
 goto dk_done
@@ -795,7 +827,7 @@ exit /b
 
 ::  https://stackoverflow.com/a/46268232
 
-set "ddf="%SystemRoot%\Temp\ddf""
+set "ddf="%SystemRoot%\Temp\%Random%%Random%%Random%%Random%""
 %nul% del /q /f %ddf%
 echo/.New Cabinet>%ddf%
 echo/.set Cabinet=ON>>%ddf%
@@ -830,7 +862,7 @@ exit /b
 set ps=%SysPath%\WindowsPowerShell\v1.0\powershell.exe
 set psc=%ps% -nop -c
 set winbuild=1
-for /f "tokens=6 delims=[]. " %%G in ('ver') do set winbuild=%%G
+for /f "tokens=2 delims=[]" %%G in ('ver') do for /f "tokens=2,3,4 delims=. " %%H in ("%%~G") do set "winbuild=%%J"
 
 set _slexe=sppsvc.exe& set _slser=sppsvc
 if %winbuild% LEQ 6300 (set _slexe=SLsvc.exe& set _slser=SLsvc)
@@ -927,6 +959,10 @@ set spperror=%errorlevel%
 if %spperror% NEQ 1056 if %spperror% NEQ 0 (
 %eline%
 echo sc start %_slser% [Error Code: %spperror%]
+if %spperror% EQU 1053 (
+call :dk_color %Blue% "Reboot your machine using the restart option and try again."
+call :dk_color %Blue% "If it still does not work, go back to Main Menu, select Troubleshoot and run Fix WPA Registry option."
+)
 )
 
 echo:
@@ -1058,7 +1094,7 @@ call :dk_color %White% "Follow ALL the ABOVE blue lines.   "
 call :dk_color2 %Blue% "Press [1] to Open Support Webpage " %Gray% " Press [0] to Ignore"
 choice /C:10 /N
 if !errorlevel!==2 exit /b
-if !errorlevel!==1 (for %%# in (%fixes%) do (start %%#))
+if !errorlevel!==1 (start %selfgit% & start %github% & for %%# in (%fixes%) do (start %%#))
 )
 
 if defined terminal (
@@ -1347,55 +1383,55 @@ if %winbuild% GEQ 22000 exit /b
 )
 if exist "%SystemRoot%\Servicing\Packages\Microsoft-Windows-Server*CorEdition~*.mum" (set Cor=Cor) else (set Cor=)
 
-set h=
+set w=
 for %%# in (
-XGVPP-NMH47-7TTHJ-W3FW7-8HV%h%2C__OEM:NONSLP_Enterprise
-D6RD9-D4N8T-RT9QX-YW6YT-FCW%h%WJ______Retail_Starter
-3V6Q6-NQXCX-V8YXR-9QCYV-QPF%h%CT__Volume:MAK_EnterpriseN
-3NFXW-2T27M-2BDW6-4GHRV-68X%h%RX______Retail_StarterN
-VK7JG-NPHTM-C97JM-9MPGT-3V6%h%6T______Retail_Professional
-2B87N-8KFHP-DKV6R-Y2C8J-PKC%h%KT______Retail_ProfessionalN
-4CPRK-NM3K3-X6XXQ-RXX86-WXC%h%HW______Retail_CoreN
-N2434-X9D7W-8PF6X-8DV9T-8TY%h%MD______Retail_CoreCountrySpecific
-BT79Q-G7N6G-PGBYW-4YWX6-6F4%h%BT______Retail_CoreSingleLanguage
-YTMG3-N6DKC-DKB77-7M9GH-8HV%h%X7______Retail_Core
-XKCNC-J26Q9-KFHD2-FKTHY-KD7%h%2Y__OEM:NONSLP_PPIPro
-YNMGQ-8RYV3-4PGQ3-C8XTP-7CF%h%BY______Retail_Education
-84NGF-MHBT6-FXBX8-QWJK7-DRR%h%8H______Retail_EducationN
-KCNVH-YKWX8-GJJB9-H9FDT-6F7%h%W2__Volume:MAK_EnterpriseS_VB
-43TBQ-NH92J-XKTM7-KT3KK-P39%h%PB__OEM:NONSLP_EnterpriseS_RS5
-NK96Y-D9CD8-W44CQ-R8YTK-DYJ%h%WX__OEM:NONSLP_EnterpriseS_RS1
-FWN7H-PF93Q-4GGP8-M8RF3-MDW%h%WW__OEM:NONSLP_EnterpriseS_TH
-RQFNW-9TPM3-JQ73T-QV4VQ-DV9%h%PT__Volume:MAK_EnterpriseSN_VB
-M33WV-NHY3C-R7FPM-BQGPT-239%h%PG__Volume:MAK_EnterpriseSN_RS5
-2DBW3-N2PJG-MVHW3-G7TDK-9HK%h%R4__Volume:MAK_EnterpriseSN_RS1
-NTX6B-BRYC2-K6786-F6MVQ-M7V%h%2X__Volume:MAK_EnterpriseSN_TH
-G3KNM-CHG6T-R36X3-9QDG6-8M8%h%K9______Retail_ProfessionalSingleLanguage
-HNGCC-Y38KG-QVK8D-WMWRK-X86%h%VK______Retail_ProfessionalCountrySpecific
-DXG7C-N36C4-C4HTG-X4T3X-2YV%h%77______Retail_ProfessionalWorkstation
-WYPNQ-8C467-V2W6J-TX4WX-WT2%h%RQ______Retail_ProfessionalWorkstationN
-8PTT6-RNW4C-6V7J2-C2D3X-MHB%h%PB______Retail_ProfessionalEducation
-GJTYN-HDMQY-FRR76-HVGC7-QPF%h%8P______Retail_ProfessionalEducationN
-C4NTJ-CX6Q2-VXDMR-XVKGM-F9D%h%JC__Volume:MAK_EnterpriseG
-46PN6-R9BK9-CVHKB-HWQ9V-MBJ%h%Y8__Volume:MAK_EnterpriseGN
-NJCF7-PW8QT-3324D-688JX-2YV%h%66______Retail_ServerRdsh
-XQQYW-NFFMW-XJPBH-K8732-CKF%h%FD______OEM:DM_IoTEnterprise
-QPM6N-7J2WJ-P88HH-P3YRH-YY7%h%4H__OEM:NONSLP_IoTEnterpriseS
-K9VKN-3BGWV-Y624W-MCRMQ-BHD%h%CD______Retail_CloudEditionN
-KY7PN-VR6RX-83W6Y-6DDYQ-T6R%h%4W______Retail_CloudEdition
-V3WVW-N2PV2-CGWC3-34QGF-VMJ%h%2C______Retail_Cloud
-NH9J3-68WK7-6FB93-4K3DF-DJ4%h%F6______Retail_CloudN
-2HN6V-HGTM8-6C97C-RK67V-JQP%h%FD______Retail_CloudE
-WC2BQ-8NRM3-FDDYY-2BFGV-KHK%h%QY_Volume:GVLK_ServerStandard%Cor%_RS1
-CB7KF-BWN84-R7R2Y-793K2-8XD%h%DG_Volume:GVLK_ServerDatacenter%Cor%_RS1
-JCKRF-N37P4-C2D82-9YXRT-4M6%h%3B_Volume:GVLK_ServerSolution_RS1
-QN4C6-GBJD2-FB422-GHWJK-GJG%h%2R_Volume:GVLK_ServerCloudStorage_RS1
-VP34G-4NPPG-79JTQ-864T4-R3M%h%QX_Volume:GVLK_ServerAzureCor_RS1
-9JQNQ-V8HQ6-PKB8H-GGHRY-R62%h%H6______Retail_ServerAzureNano_RS1
-VN8D3-PR82H-DB6BJ-J9P4M-92F%h%6J______Retail_ServerStorageStandard_RS1
-48TQX-NVK3R-D8QR3-GTHHM-8FH%h%XC______Retail_ServerStorageWorkgroup_RS1
-2HXDN-KRXHB-GPYC7-YCKFJ-7FV%h%DG_Volume:GVLK_ServerDatacenterACor_RS3
-PTXN8-JFHJM-4WC78-MPCBR-9W4%h%KR_Volume:GVLK_ServerStandardACor_RS3
+XGVPP-NMH47-7TTHJ-W3FW7-8HV%w%2C__OEM:NONSLP_Enterprise
+D6RD9-D4N8T-RT9QX-YW6YT-FCW%w%WJ______Retail_Starter
+3V6Q6-NQXCX-V8YXR-9QCYV-QPF%w%CT__Volume:MAK_EnterpriseN
+3NFXW-2T27M-2BDW6-4GHRV-68X%w%RX______Retail_StarterN
+VK7JG-NPHTM-C97JM-9MPGT-3V6%w%6T______Retail_Professional
+2B87N-8KFHP-DKV6R-Y2C8J-PKC%w%KT______Retail_ProfessionalN
+4CPRK-NM3K3-X6XXQ-RXX86-WXC%w%HW______Retail_CoreN
+N2434-X9D7W-8PF6X-8DV9T-8TY%w%MD______Retail_CoreCountrySpecific
+BT79Q-G7N6G-PGBYW-4YWX6-6F4%w%BT______Retail_CoreSingleLanguage
+YTMG3-N6DKC-DKB77-7M9GH-8HV%w%X7______Retail_Core
+XKCNC-J26Q9-KFHD2-FKTHY-KD7%w%2Y__OEM:NONSLP_PPIPro
+YNMGQ-8RYV3-4PGQ3-C8XTP-7CF%w%BY______Retail_Education
+84NGF-MHBT6-FXBX8-QWJK7-DRR%w%8H______Retail_EducationN
+KCNVH-YKWX8-GJJB9-H9FDT-6F7%w%W2__Volume:MAK_EnterpriseS_VB
+43TBQ-NH92J-XKTM7-KT3KK-P39%w%PB__OEM:NONSLP_EnterpriseS_RS5
+NK96Y-D9CD8-W44CQ-R8YTK-DYJ%w%WX__OEM:NONSLP_EnterpriseS_RS1
+FWN7H-PF93Q-4GGP8-M8RF3-MDW%w%WW__OEM:NONSLP_EnterpriseS_TH
+RQFNW-9TPM3-JQ73T-QV4VQ-DV9%w%PT__Volume:MAK_EnterpriseSN_VB
+M33WV-NHY3C-R7FPM-BQGPT-239%w%PG__Volume:MAK_EnterpriseSN_RS5
+2DBW3-N2PJG-MVHW3-G7TDK-9HK%w%R4__Volume:MAK_EnterpriseSN_RS1
+NTX6B-BRYC2-K6786-F6MVQ-M7V%w%2X__Volume:MAK_EnterpriseSN_TH
+G3KNM-CHG6T-R36X3-9QDG6-8M8%w%K9______Retail_ProfessionalSingleLanguage
+HNGCC-Y38KG-QVK8D-WMWRK-X86%w%VK______Retail_ProfessionalCountrySpecific
+DXG7C-N36C4-C4HTG-X4T3X-2YV%w%77______Retail_ProfessionalWorkstation
+WYPNQ-8C467-V2W6J-TX4WX-WT2%w%RQ______Retail_ProfessionalWorkstationN
+8PTT6-RNW4C-6V7J2-C2D3X-MHB%w%PB______Retail_ProfessionalEducation
+GJTYN-HDMQY-FRR76-HVGC7-QPF%w%8P______Retail_ProfessionalEducationN
+C4NTJ-CX6Q2-VXDMR-XVKGM-F9D%w%JC__Volume:MAK_EnterpriseG
+46PN6-R9BK9-CVHKB-HWQ9V-MBJ%w%Y8__Volume:MAK_EnterpriseGN
+NJCF7-PW8QT-3324D-688JX-2YV%w%66______Retail_ServerRdsh
+XQQYW-NFFMW-XJPBH-K8732-CKF%w%FD______OEM:DM_IoTEnterprise
+QPM6N-7J2WJ-P88HH-P3YRH-YY7%w%4H__OEM:NONSLP_IoTEnterpriseS
+K9VKN-3BGWV-Y624W-MCRMQ-BHD%w%CD______Retail_CloudEditionN
+KY7PN-VR6RX-83W6Y-6DDYQ-T6R%w%4W______Retail_CloudEdition
+V3WVW-N2PV2-CGWC3-34QGF-VMJ%w%2C______Retail_Cloud
+NH9J3-68WK7-6FB93-4K3DF-DJ4%w%F6______Retail_CloudN
+2HN6V-HGTM8-6C97C-RK67V-JQP%w%FD______Retail_CloudE
+WC2BQ-8NRM3-FDDYY-2BFGV-KHK%w%QY_Volume:GVLK_ServerStandard%Cor%_RS1
+CB7KF-BWN84-R7R2Y-793K2-8XD%w%DG_Volume:GVLK_ServerDatacenter%Cor%_RS1
+JCKRF-N37P4-C2D82-9YXRT-4M6%w%3B_Volume:GVLK_ServerSolution_RS1
+QN4C6-GBJD2-FB422-GHWJK-GJG%w%2R_Volume:GVLK_ServerCloudStorage_RS1
+VP34G-4NPPG-79JTQ-864T4-R3M%w%QX_Volume:GVLK_ServerAzureCor_RS1
+9JQNQ-V8HQ6-PKB8H-GGHRY-R62%w%H6______Retail_ServerAzureNano_RS1
+VN8D3-PR82H-DB6BJ-J9P4M-92F%w%6J______Retail_ServerStorageStandard_RS1
+48TQX-NVK3R-D8QR3-GTHHM-8FH%w%XC______Retail_ServerStorageWorkgroup_RS1
+2HXDN-KRXHB-GPYC7-YCKFJ-7FV%w%DG_Volume:GVLK_ServerDatacenterACor_RS3
+PTXN8-JFHJM-4WC78-MPCBR-9W4%w%KR_Volume:GVLK_ServerStandardACor_RS3
 ) do (
 for /f "tokens=1-4 delims=_" %%A in ("%%#") do if /i %targetedition%==%%C (
 
